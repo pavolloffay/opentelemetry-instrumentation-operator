@@ -26,16 +26,19 @@ data:
     exporters:
       logging:
         loglevel: debug
+      jaeger:
+        endpoint: jaeger-collector.jaeger:14250
+        insecure: true
     service:
       extensions: [zpages, health_check]
       pipelines:
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: [logging]
+          exporters: [logging, jaeger]
         metrics:
           receivers: [otlp]
-          processors: [ batch]
+          processors: [batch]
           exporters: [logging]
 ---
 apiVersion: v1

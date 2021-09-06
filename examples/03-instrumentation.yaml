@@ -5,3 +5,5 @@ metadata:
 spec:
   OTLPEndpoint: http://otel-collector.otel:4317
   javaagentImage: ghcr.io/pavolloffay/otel-javaagent:1.5.3
+  tracesSampler: parentbased_traceidratio
+  tracesSamplerArg: "1"

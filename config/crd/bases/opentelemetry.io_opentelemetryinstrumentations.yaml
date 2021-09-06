@@ -44,6 +44,10 @@ spec:
                 type: string
               javaagentImage:
                 type: string
+              tracesSampler:
+                type: string
+              tracesSamplerArg:
+                type: string
             type: object
           status:
             description: OpenTelemetryInstrumentationStatus defines the observed state

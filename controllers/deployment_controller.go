@@ -146,6 +146,30 @@ func injectContainer(container *corev1.Container, inst cachev1alpha1.OpenTelemet
 			MountPath: "/otel-auto-instrumentation",
 		})
 	}
+
+	if inst.TracesSampler != "" {
+		idx = getIndexOfEnv(container.Env, "OTEL_TRACES_SAMPLER")
+		if idx > -1 {
+			container.Env[idx].Value = inst.TracesSampler
+		} else {
+			container.Env = append(container.Env, corev1.EnvVar{
+				Name:  "OTEL_TRACES_SAMPLER",
+				Value: inst.TracesSampler,
+			})
+		}
+	}
+
+	if inst.TracesSamplerArg != "" {
+		idx = getIndexOfEnv(container.Env, "OTEL_TRACES_SAMPLER_ARG")
+		if idx > -1 {
+			container.Env[idx].Value = inst.TracesSamplerArg
+		} else {
+			container.Env = append(container.Env, corev1.EnvVar{
+				Name:  "OTEL_TRACES_SAMPLER_ARG",
+				Value: inst.TracesSamplerArg,
+			})
+		}
+	}
 }
 
 func getIndexOfEnv(envs []corev1.EnvVar, name string) int {

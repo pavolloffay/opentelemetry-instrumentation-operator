@@ -20,17 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // OpenTelemetryInstrumentationSpec defines the desired state of OpenTelemetryInstrumentation
 type OpenTelemetryInstrumentationSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Foo is an example field of OpenTelemetryInstrumentation. Edit opentelemetryinstrumentation_types.go to remove/update
-	OTLPEndpoint   string `json:"OTLPEndpoint,omitempty"`
-	JavaagentImage string `json:"javaagentImage,omitempty"`
+	OTLPEndpoint     string `json:"OTLPEndpoint,omitempty"`
+	JavaagentImage   string `json:"javaagentImage,omitempty"`
+	TracesSampler    string `json:"tracesSampler,omitempty"`
+	TracesSamplerArg string `json:"tracesSamplerArg,omitempty"`
 }
 
 // OpenTelemetryInstrumentationStatus defines the observed state of OpenTelemetryInstrumentation
