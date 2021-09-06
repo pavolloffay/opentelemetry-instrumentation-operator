@@ -1,0 +1,24 @@
+# permissions for end users to edit opentelemetryinstrumentations.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: opentelemetryinstrumentation-editor-role
+rules:
+- apiGroups:
+  - cache.opentelemetry.io
+  resources:
+  - opentelemetryinstrumentations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cache.opentelemetry.io
+  resources:
+  - opentelemetryinstrumentations/status
+  verbs:
+  - get

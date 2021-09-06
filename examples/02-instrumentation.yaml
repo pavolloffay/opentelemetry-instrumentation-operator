@@ -1,0 +1,7 @@
+apiVersion: cache.opentelemetry.io/v1alpha1
+kind: OpenTelemetryInstrumentation
+metadata:
+  name: opentelemetry-instrumentation
+spec:
+  OTLPEndpoint: http://otel-collector.otel:4317
+  javaagentImage: ghcr.io/pavolloffay/otel-javaagent:1.5.3

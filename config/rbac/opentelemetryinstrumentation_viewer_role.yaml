@@ -1,0 +1,20 @@
+# permissions for end users to view opentelemetryinstrumentations.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: opentelemetryinstrumentation-viewer-role
+rules:
+- apiGroups:
+  - cache.opentelemetry.io
+  resources:
+  - opentelemetryinstrumentations
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cache.opentelemetry.io
+  resources:
+  - opentelemetryinstrumentations/status
+  verbs:
+  - get

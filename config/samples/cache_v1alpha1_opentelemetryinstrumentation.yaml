@@ -1,0 +1,7 @@
+apiVersion: cache.opentelemetry.io/v1alpha1
+kind: OpenTelemetryInstrumentation
+metadata:
+  name: opentelemetryinstrumentation-sample
+spec:
+  # Add fields here
+  foo: bar
