@@ -1,13 +1,14 @@
 # OpenTelemetry instrumentation operator
 
-OpenTelemetry instrumentation operator
+OpenTelemetry instrumentation operator injects OpenTelemetry auto instrumentation into deployment.
+For the configuration see [instrumentation-cr](./examples/04-instrumentation.yaml).
 
 ## Enable instrumentation
 
 ### Java
 
 ```bash
-kubectl label deployment.apps/spring-petclinic opentelemetry-java-enabled=true
+kubectl label deployment.apps/java-app opentelemetry-java-enabled=true
 ```
 
 ### Python

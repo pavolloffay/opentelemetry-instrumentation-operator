@@ -74,7 +74,7 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 
 		fmt.Println("injection is enabled")
-		injectPod(&(dep.Spec.Template.Spec), instr.Spec)
+		injectPod(req, &(dep.Spec.Template.Spec), instr.Spec)
 
 		if err := r.Client.Update(ctx, dep); err != nil {
 			return ctrl.Result{}, err
@@ -93,7 +93,7 @@ func (r *PodControllerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func injectPod(pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+func injectPod(req ctrl.Request, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	idx := getIndexOfContainer(pod.InitContainers, "opentelemetry-auto-instrumentation")
 	if idx == -1 {
 		pod.InitContainers = append(pod.InitContainers, corev1.Container{
@@ -117,10 +117,10 @@ func injectPod(pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryI
 			}})
 	}
 
-	injectContainer(&pod.Containers[0], instrumentation)
+	injectContainer(req, &pod.Containers[0], instrumentation)
 }
 
-func injectContainer(container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+func injectContainer(req ctrl.Request, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	javaagent := " -javaagent:/otel-auto-instrumentation/javaagent.jar"
 	idx := getIndexOfEnv(container.Env, "JAVA_TOOL_OPTIONS")
 	if idx > -1 && strings.Contains(container.Env[idx].Value, javaagent) {
@@ -144,6 +144,16 @@ func injectContainer(container *corev1.Container, inst cachev1alpha1.OpenTelemet
 		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
 			Name:      "opentelemetry-auto-instrumentation",
 			MountPath: "/otel-auto-instrumentation",
+		})
+	}
+
+	idx = getIndexOfEnv(container.Env, "OTEL_SERVICE_NAME")
+	if idx > -1 {
+		container.Env[idx].Value = req.Name
+	} else {
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  "OTEL_SERVICE_NAME",
+			Value: req.Name,
 		})
 	}
 
