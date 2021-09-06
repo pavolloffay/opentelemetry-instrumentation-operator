@@ -5,7 +5,7 @@ metadata:
   name: opentelemetryinstrumentation-viewer-role
 rules:
 - apiGroups:
-  - cache.opentelemetry.io
+  - opentelemetry.io
   resources:
   - opentelemetryinstrumentations
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - cache.opentelemetry.io
+  - opentelemetry.io
   resources:
   - opentelemetryinstrumentations/status
   verbs:

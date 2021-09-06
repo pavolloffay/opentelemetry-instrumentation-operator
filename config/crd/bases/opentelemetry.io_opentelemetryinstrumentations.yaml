@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.6.1
   creationTimestamp: null
-  name: opentelemetryinstrumentations.cache.opentelemetry.io
+  name: opentelemetryinstrumentations.opentelemetry.io
 spec:
-  group: cache.opentelemetry.io
+  group: opentelemetry.io
   names:
     kind: OpenTelemetryInstrumentation
     listKind: OpenTelemetryInstrumentationList

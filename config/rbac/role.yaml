@@ -7,7 +7,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - cache.opentelemetry.io
+  - opentelemetry.io
   resources:
   - opentelemetryinstrumentations
   verbs:
@@ -19,13 +19,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - cache.opentelemetry.io
+  - opentelemetry.io
   resources:
   - opentelemetryinstrumentations/finalizers
   verbs:
   - update
 - apiGroups:
-  - cache.opentelemetry.io
+  - opentelemetry.io
   resources:
   - opentelemetryinstrumentations/status
   verbs:

@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	cachev1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
+	otelinstv1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
 	"github.com/pavolloffay/opentelemetry-instrumentation-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -44,7 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(cachev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(otelinstv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

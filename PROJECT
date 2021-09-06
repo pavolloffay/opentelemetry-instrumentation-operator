@@ -12,7 +12,6 @@ resources:
     namespaced: true
   controller: true
   domain: opentelemetry.io
-  group: cache
   kind: OpenTelemetryInstrumentation
   path: github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1
   version: v1alpha1
