@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	cachev1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -45,6 +46,7 @@ type PodControllerReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	fmt.Println("Deployment reconcile: " + req.Namespace + "/" + req.Name)
 
 	dep := &v1.Deployment{}
 	if err := r.Client.Get(ctx, req.NamespacedName, dep); err != nil {

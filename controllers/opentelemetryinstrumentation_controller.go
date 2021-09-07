@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,6 +41,8 @@ type OpenTelemetryInstrumentationReconciler struct {
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations/finalizers,verbs=update
 func (r *OpenTelemetryInstrumentationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	fmt.Println("Deployment reconcile: " + req.Namespace + "/" + req.Name)
+
 	instrumentation := &v1alpha1.OpenTelemetryInstrumentation{}
 	if err := r.Client.Get(ctx, req.NamespacedName, instrumentation); err != nil {
 		return ctrl.Result{}, err

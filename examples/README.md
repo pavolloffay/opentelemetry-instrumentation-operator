@@ -1,6 +1,5 @@
 # Spring Pet Clinic example
 
-
 ## Install
 
 ### 1. Install tracing infrastructure and Spring Pet Clinic
@@ -37,10 +36,19 @@ or instrument all deployments in the namespace
 kubectl label namespace/default opentelemetry-java-enabled=true
 ```
 
-### 5. Change instrumentation config
+## Change instrumentation config
 
 ```bash
-kubectl edit  opentelemetryinstrumentations  opentelemetry-instrumentation
+kubectl edit opentelemetryinstrumentations opentelemetry-instrumentation
 ```
 
-Add arbitrary attribute
+Add arbitrary attribute.
+
+The workload pod should restart with the new configuration.
+
+
+Or add annotation to workload:
+
+```bash
+kubectl annotate deployment.apps/spring-petclinic otel.tracesSamplerArg=0.5
+```
