@@ -157,6 +157,25 @@ func injectContainer(req ctrl.Request, container *corev1.Container, inst cachev1
 		})
 	}
 
+	if len(inst.ResourceAttributes) > 0 {
+		resourceAttributes := ""
+		for k, v := range inst.ResourceAttributes {
+			if resourceAttributes != "" {
+				resourceAttributes += ","
+			}
+			resourceAttributes += fmt.Sprintf("%s=%s", k, v)
+		}
+		idx = getIndexOfEnv(container.Env, "OTEL_RESOURCE_ATTRIBUTES")
+		if idx > -1 {
+			container.Env[idx].Value = resourceAttributes
+		} else {
+			container.Env = append(container.Env, corev1.EnvVar{
+				Name:  "OTEL_RESOURCE_ATTRIBUTES",
+				Value: resourceAttributes,
+			})
+		}
+	}
+
 	if inst.TracesSampler != "" {
 		idx = getIndexOfEnv(container.Env, "OTEL_TRACES_SAMPLER")
 		if idx > -1 {

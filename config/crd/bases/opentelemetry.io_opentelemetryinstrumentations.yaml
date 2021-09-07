@@ -39,11 +39,13 @@ spec:
               of OpenTelemetryInstrumentation
             properties:
               OTLPEndpoint:
-                description: Foo is an example field of OpenTelemetryInstrumentation.
-                  Edit opentelemetryinstrumentation_types.go to remove/update
                 type: string
               javaagentImage:
                 type: string
+              resourceAttributes:
+                additionalProperties:
+                  type: string
+                type: object
               tracesSampler:
                 type: string
               tracesSamplerArg:

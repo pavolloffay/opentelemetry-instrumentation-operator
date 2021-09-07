@@ -7,3 +7,5 @@ spec:
   javaagentImage: ghcr.io/pavolloffay/otel-javaagent:1.5.3
   tracesSampler: parentbased_traceidratio
   tracesSamplerArg: "1"
+  resourceAttributes:
+    environment: prod

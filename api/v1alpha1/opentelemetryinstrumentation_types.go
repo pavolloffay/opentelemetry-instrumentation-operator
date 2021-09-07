@@ -22,17 +22,15 @@ import (
 
 // OpenTelemetryInstrumentationSpec defines the desired state of OpenTelemetryInstrumentation
 type OpenTelemetryInstrumentationSpec struct {
-	// Foo is an example field of OpenTelemetryInstrumentation. Edit opentelemetryinstrumentation_types.go to remove/update
-	OTLPEndpoint     string `json:"OTLPEndpoint,omitempty"`
-	JavaagentImage   string `json:"javaagentImage,omitempty"`
-	TracesSampler    string `json:"tracesSampler,omitempty"`
-	TracesSamplerArg string `json:"tracesSamplerArg,omitempty"`
+	OTLPEndpoint       string            `json:"OTLPEndpoint,omitempty"`
+	JavaagentImage     string            `json:"javaagentImage,omitempty"`
+	TracesSampler      string            `json:"tracesSampler,omitempty"`
+	TracesSamplerArg   string            `json:"tracesSamplerArg,omitempty"`
+	ResourceAttributes map[string]string `json:"resourceAttributes,omitempty"`
 }
 
 // OpenTelemetryInstrumentationStatus defines the observed state of OpenTelemetryInstrumentation
 type OpenTelemetryInstrumentationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true
