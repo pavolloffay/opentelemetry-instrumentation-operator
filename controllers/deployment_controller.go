@@ -40,13 +40,6 @@ type PodControllerReconciler struct {
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the OpenTelemetryInstrumentation object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -62,6 +55,8 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		fmt.Println("getting deployment failed")
 		return ctrl.Result{}, err
 	}
+	fmt.Println("cluster ---->")
+	fmt.Println(dep.GetClusterName())
 
 	if dep.Labels["opentelemetry-java-enabled"] == "true" {
 		fmt.Println("injection enabled")
@@ -74,7 +69,14 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 
 		fmt.Println("injection is enabled")
-		injectPod(req, &(dep.Spec.Template.Spec), instr.Spec)
+		m := metadata{
+			namespace:      dep.Namespace,
+			deploymentName: dep.Name,
+			//podName:        dep.Spec.Template.Name,
+			containerName: dep.Spec.Template.Spec.Containers[0].Name,
+		}
+
+		injectPod(m, &(dep.Spec.Template.Spec), instr.Spec)
 
 		if err := r.Client.Update(ctx, dep); err != nil {
 			return ctrl.Result{}, err
@@ -93,7 +95,10 @@ func (r *PodControllerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func injectPod(req ctrl.Request, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+func injectPod(metadata metadata, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+	fmt.Println("node name ---->")
+	fmt.Println(pod.NodeName)
+
 	idx := getIndexOfContainer(pod.InitContainers, "opentelemetry-auto-instrumentation")
 	if idx == -1 {
 		pod.InitContainers = append(pod.InitContainers, corev1.Container{
@@ -117,10 +122,10 @@ func injectPod(req ctrl.Request, pod *corev1.PodSpec, instrumentation cachev1alp
 			}})
 	}
 
-	injectContainer(req, &pod.Containers[0], instrumentation)
+	injectContainer(metadata, &pod.Containers[0], instrumentation)
 }
 
-func injectContainer(req ctrl.Request, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+func injectContainer(metadata metadata, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	javaagent := " -javaagent:/otel-auto-instrumentation/javaagent.jar"
 	idx := getIndexOfEnv(container.Env, "JAVA_TOOL_OPTIONS")
 	if idx > -1 && strings.Contains(container.Env[idx].Value, javaagent) {
@@ -149,11 +154,11 @@ func injectContainer(req ctrl.Request, container *corev1.Container, inst cachev1
 
 	idx = getIndexOfEnv(container.Env, "OTEL_SERVICE_NAME")
 	if idx > -1 {
-		container.Env[idx].Value = req.Name
+		container.Env[idx].Value = metadata.deploymentName
 	} else {
 		container.Env = append(container.Env, corev1.EnvVar{
 			Name:  "OTEL_SERVICE_NAME",
-			Value: req.Name,
+			Value: metadata.deploymentName,
 		})
 	}
 
@@ -165,6 +170,11 @@ func injectContainer(req ctrl.Request, container *corev1.Container, inst cachev1
 			}
 			resourceAttributes += fmt.Sprintf("%s=%s", k, v)
 		}
+		resourceAttributes += ",k8s.namespace=" + metadata.namespace
+		resourceAttributes += ",k8s.deployment=" + metadata.deploymentName
+		//resourceAttributes += ",k8s.pod=" + metadata.podName
+		resourceAttributes += ",k8s.container=" + metadata.containerName
+
 		idx = getIndexOfEnv(container.Env, "OTEL_RESOURCE_ATTRIBUTES")
 		if idx > -1 {
 			container.Env[idx].Value = resourceAttributes
@@ -199,6 +209,14 @@ func injectContainer(req ctrl.Request, container *corev1.Container, inst cachev1
 			})
 		}
 	}
+}
+
+type metadata struct {
+	namespace      string
+	deploymentName string
+	// pod name is not known at this time
+	//podName        string
+	containerName string
 }
 
 func getIndexOfEnv(envs []corev1.EnvVar, name string) int {
