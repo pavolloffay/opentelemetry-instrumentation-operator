@@ -21,6 +21,7 @@ import (
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,21 +46,24 @@ type PodControllerReconciler struct {
 func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	fmt.Println("pod controller")
-	fmt.Println(req.Name)
-	fmt.Println(req.Namespace)
-	fmt.Println(req.NamespacedName)
-
 	dep := &v1.Deployment{}
 	if err := r.Client.Get(ctx, req.NamespacedName, dep); err != nil {
 		fmt.Println("getting deployment failed")
 		return ctrl.Result{}, err
 	}
+
+	ns := &corev1.Namespace{}
+	if err := r.Client.Get(ctx, types.NamespacedName{
+		Name: req.Namespace,
+	}, ns); err != nil {
+		fmt.Println("getting namespace failed")
+		return ctrl.Result{}, err
+	}
+
 	fmt.Println("cluster ---->")
 	fmt.Println(dep.GetClusterName())
 
-	if dep.Labels["opentelemetry-java-enabled"] == "true" {
-		fmt.Println("injection enabled")
+	if isInstrumentationEnabled("opentelemetry-java-enabled", dep.ObjectMeta, ns.ObjectMeta) {
 		instr := &cachev1alpha1.OpenTelemetryInstrumentation{}
 		if err := r.Client.Get(ctx, types.NamespacedName{
 			Namespace: req.Namespace,
@@ -81,11 +85,20 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if err := r.Client.Update(ctx, dep); err != nil {
 			return ctrl.Result{}, err
 		}
-	} else {
-		fmt.Println("injection disabled")
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func isInstrumentationEnabled(label string, meta ...metav1.ObjectMeta) bool {
+	for _, ometa := range meta {
+		val, ok := ometa.Labels[label]
+		if !ok {
+			continue
+		}
+		return val == "true"
+	}
+	return false
 }
 
 // SetupWithManager sets up the controller with the Manager.

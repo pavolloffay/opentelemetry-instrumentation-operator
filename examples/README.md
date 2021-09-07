@@ -30,3 +30,9 @@ kubectl apply -f examples/04*
 ```bash
 kubectl label deployment.apps/spring-petclinic opentelemetry-java-enabled=true
 ```
+
+or instrument all deployments in the namespace
+
+```bash
+kubectl label namespace/default opentelemetry-java-enabled=true
+```
