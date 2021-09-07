@@ -48,7 +48,6 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	dep := &v1.Deployment{}
 	if err := r.Client.Get(ctx, req.NamespacedName, dep); err != nil {
-		fmt.Println("getting deployment failed")
 		return ctrl.Result{}, err
 	}
 
@@ -56,23 +55,18 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := r.Client.Get(ctx, types.NamespacedName{
 		Name: req.Namespace,
 	}, ns); err != nil {
-		fmt.Println("getting namespace failed")
 		return ctrl.Result{}, err
 	}
 
-	fmt.Println("cluster ---->")
-	fmt.Println(dep.GetClusterName())
-
 	if isInstrumentationEnabled("opentelemetry-java-enabled", dep.ObjectMeta, ns.ObjectMeta) {
-		instr := &cachev1alpha1.OpenTelemetryInstrumentation{}
+		instrumentation := &cachev1alpha1.OpenTelemetryInstrumentation{}
 		if err := r.Client.Get(ctx, types.NamespacedName{
 			Namespace: req.Namespace,
 			Name:      "opentelemetry-instrumentation",
-		}, instr); err != nil {
+		}, instrumentation); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		fmt.Println("injection is enabled")
 		m := metadata{
 			namespace:      dep.Namespace,
 			deploymentName: dep.Name,
@@ -80,7 +74,7 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			containerName: dep.Spec.Template.Spec.Containers[0].Name,
 		}
 
-		injectPod(m, &(dep.Spec.Template.Spec), instr.Spec)
+		injectPod(m, dep.ObjectMeta, &(dep.Spec.Template.Spec), instrumentation.Spec)
 
 		if err := r.Client.Update(ctx, dep); err != nil {
 			return ctrl.Result{}, err
@@ -108,10 +102,7 @@ func (r *PodControllerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func injectPod(metadata metadata, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
-	fmt.Println("node name ---->")
-	fmt.Println(pod.NodeName)
-
+func injectPod(metadata metadata, parentMeta metav1.ObjectMeta, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	idx := getIndexOfContainer(pod.InitContainers, "opentelemetry-auto-instrumentation")
 	if idx == -1 {
 		pod.InitContainers = append(pod.InitContainers, corev1.Container{
@@ -135,10 +126,10 @@ func injectPod(metadata metadata, pod *corev1.PodSpec, instrumentation cachev1al
 			}})
 	}
 
-	injectContainer(metadata, &pod.Containers[0], instrumentation)
+	injectContainer(metadata, parentMeta, &pod.Containers[0], instrumentation)
 }
 
-func injectContainer(metadata metadata, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+func injectContainer(metadata metadata, parentMeta metav1.ObjectMeta, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	javaagent := " -javaagent:/otel-auto-instrumentation/javaagent.jar"
 	idx := getIndexOfEnv(container.Env, "JAVA_TOOL_OPTIONS")
 	if idx > -1 && strings.Contains(container.Env[idx].Value, javaagent) {
@@ -200,25 +191,35 @@ func injectContainer(metadata metadata, container *corev1.Container, inst cachev
 	}
 
 	if inst.TracesSampler != "" {
+		sampler := inst.TracesSampler
+		if samplerAnnotation := parentMeta.GetAnnotations()["otel.tracesSampler"]; samplerAnnotation != "" {
+			sampler = samplerAnnotation
+		}
+
 		idx = getIndexOfEnv(container.Env, "OTEL_TRACES_SAMPLER")
 		if idx > -1 {
-			container.Env[idx].Value = inst.TracesSampler
+			container.Env[idx].Value = sampler
 		} else {
 			container.Env = append(container.Env, corev1.EnvVar{
 				Name:  "OTEL_TRACES_SAMPLER",
-				Value: inst.TracesSampler,
+				Value: sampler,
 			})
 		}
 	}
 
 	if inst.TracesSamplerArg != "" {
+		samplerArg := inst.TracesSamplerArg
+		if samplerAnnotationArg := parentMeta.GetAnnotations()["otel.tracesSamplerArg"]; samplerAnnotationArg != "" {
+			samplerArg = samplerAnnotationArg
+		}
+
 		idx = getIndexOfEnv(container.Env, "OTEL_TRACES_SAMPLER_ARG")
 		if idx > -1 {
-			container.Env[idx].Value = inst.TracesSamplerArg
+			container.Env[idx].Value = samplerArg
 		} else {
 			container.Env = append(container.Env, corev1.EnvVar{
 				Name:  "OTEL_TRACES_SAMPLER_ARG",
-				Value: inst.TracesSamplerArg,
+				Value: samplerArg,
 			})
 		}
 	}
