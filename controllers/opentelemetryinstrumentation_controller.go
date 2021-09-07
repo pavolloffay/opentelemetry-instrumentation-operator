@@ -18,12 +18,15 @@ package controllers
 
 import (
 	"context"
+	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	cachev1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
+	v1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
 )
 
 // OpenTelemetryInstrumentationReconciler reconciles a OpenTelemetryInstrumentation object
@@ -35,18 +38,38 @@ type OpenTelemetryInstrumentationReconciler struct {
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the OpenTelemetryInstrumentation object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (r *OpenTelemetryInstrumentationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	instrumentation := &v1alpha1.OpenTelemetryInstrumentation{}
+	if err := r.Client.Get(ctx, req.NamespacedName, instrumentation); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	ns := &corev1.Namespace{}
+	if err := r.Client.Get(ctx, types.NamespacedName{
+		Name: req.Namespace,
+	}, ns); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	deps := &v1.DeploymentList{}
+	if err := r.Client.List(ctx, deps); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	for _, dep := range deps.Items {
+		if isInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
+			m := metadata{
+				namespace:      req.Namespace,
+				deploymentName: dep.Name,
+				containerName:  dep.Spec.Template.Spec.Containers[0].Name,
+			}
+			injectPod(m, dep.ObjectMeta, &dep.Spec.Template.Spec, instrumentation.Spec)
+			if err := r.Client.Update(ctx, &dep); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -54,6 +77,6 @@ func (r *OpenTelemetryInstrumentationReconciler) Reconcile(ctx context.Context, 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OpenTelemetryInstrumentationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&cachev1alpha1.OpenTelemetryInstrumentation{}).
+		For(&v1alpha1.OpenTelemetryInstrumentation{}).
 		Complete(r)
 }

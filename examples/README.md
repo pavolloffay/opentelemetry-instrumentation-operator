@@ -36,3 +36,11 @@ or instrument all deployments in the namespace
 ```bash
 kubectl label namespace/default opentelemetry-java-enabled=true
 ```
+
+### 5. Change instrumentation config
+
+```bash
+kubectl edit  opentelemetryinstrumentations  opentelemetry-instrumentation
+```
+
+Add arbitrary attribute
