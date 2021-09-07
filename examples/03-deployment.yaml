@@ -15,7 +15,7 @@ spec:
         app: spring-petclinic
     spec:
       containers:
-        - name: spring-petclinic
+        - name: app-petclinic
           image: ghcr.io/pavolloffay/spring-petclinic:latest
           ports:
             - containerPort: 80
