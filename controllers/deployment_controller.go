@@ -80,14 +80,7 @@ func (r *DeploymentControllerReconciler) Reconcile(ctx context.Context, req ctrl
 			return ctrl.Result{}, err
 		}
 
-		m := inject.Metadata{
-			Namespace:      dep.Namespace,
-			DeploymentName: dep.Name,
-			//podName:        dep.Spec.Template.Name,
-			ContainerName: dep.Spec.Template.Spec.Containers[0].Name,
-		}
-
-		inject.InjectPod(m, dep.ObjectMeta, &(dep.Spec.Template.Spec), instrumentation.Spec)
+		inject.InjectPod(dep.ObjectMeta, &(dep.Spec.Template.Spec), instrumentation.Spec)
 		if err := r.Client.Update(ctx, dep); err != nil {
 			return ctrl.Result{}, err
 		}

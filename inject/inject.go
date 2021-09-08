@@ -34,15 +34,7 @@ func IsInstrumentationEnabled(label string, meta ...metav1.ObjectMeta) bool {
 	return false
 }
 
-type Metadata struct {
-	Namespace      string
-	DeploymentName string
-	// pod name is not known at this time
-	//podName        string
-	ContainerName string
-}
-
-func InjectPod(metadata Metadata, workloadMeta metav1.ObjectMeta, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+func InjectPod(workloadMeta metav1.ObjectMeta, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	idx := getIndexOfContainer(pod.InitContainers, "opentelemetry-auto-instrumentation")
 	if idx == -1 {
 		pod.InitContainers = append(pod.InitContainers, corev1.Container{
@@ -66,10 +58,10 @@ func InjectPod(metadata Metadata, workloadMeta metav1.ObjectMeta, pod *corev1.Po
 			}})
 	}
 
-	injectContainer(metadata, workloadMeta, &pod.Containers[0], instrumentation)
+	injectContainer(workloadMeta, &pod.Containers[0], instrumentation)
 }
 
-func injectContainer(metadata Metadata, parentMeta metav1.ObjectMeta, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+func injectContainer(parentMeta metav1.ObjectMeta, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	idx := getIndexOfEnv(container.Env, envJavaToolsOptions)
 	if idx > -1 && strings.Contains(container.Env[idx].Value, javaJVMArgument) {
 		// nothing
@@ -97,11 +89,11 @@ func injectContainer(metadata Metadata, parentMeta metav1.ObjectMeta, container 
 
 	idx = getIndexOfEnv(container.Env, envOTELServiceName)
 	if idx > -1 {
-		container.Env[idx].Value = metadata.DeploymentName
+		container.Env[idx].Value = parentMeta.Name
 	} else {
 		container.Env = append(container.Env, corev1.EnvVar{
 			Name:  envOTELServiceName,
-			Value: metadata.DeploymentName,
+			Value: parentMeta.Name,
 		})
 	}
 
@@ -113,10 +105,10 @@ func injectContainer(metadata Metadata, parentMeta metav1.ObjectMeta, container 
 			}
 			resourceAttributes += fmt.Sprintf("%s=%s", k, v)
 		}
-		resourceAttributes += ",k8s.namespace=" + metadata.Namespace
-		resourceAttributes += ",k8s.deployment=" + metadata.DeploymentName
+		resourceAttributes += ",k8s.namespace=" + parentMeta.Namespace
+		resourceAttributes += ",k8s.deployment=" + parentMeta.Name
 		//resourceAttributes += ",k8s.pod=" + metadata.podName
-		resourceAttributes += ",k8s.container=" + metadata.ContainerName
+		resourceAttributes += ",k8s.container=" + container.Name
 
 		idx = getIndexOfEnv(container.Env, envOTELResourceAttrs)
 		if idx > -1 {

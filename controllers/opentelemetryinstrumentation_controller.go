@@ -68,12 +68,7 @@ func (r *OpenTelemetryInstrumentationReconciler) Reconcile(ctx context.Context, 
 
 	for _, dep := range deps.Items {
 		if inject.IsInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
-			m := inject.Metadata{
-				Namespace:      req.Namespace,
-				DeploymentName: dep.Name,
-				ContainerName:  dep.Spec.Template.Spec.Containers[0].Name,
-			}
-			inject.InjectPod(m, dep.ObjectMeta, &dep.Spec.Template.Spec, instrumentation.Spec)
+			inject.InjectPod(dep.ObjectMeta, &dep.Spec.Template.Spec, instrumentation.Spec)
 			if err := r.Client.Update(ctx, &dep); err != nil {
 				return ctrl.Result{}, err
 			}
