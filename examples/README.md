@@ -27,13 +27,13 @@ kubectl apply -f examples/04*
 ### 4. Instrument the application
 
 ```bash
-kubectl label deployment.apps/spring-petclinic opentelemetry-java-enabled=true
+kubectl label deployment.apps/spring-petclinic opentelemetry-inst-java=enabled
 ```
 
 or instrument all deployments in the namespace
 
 ```bash
-kubectl label namespace/default opentelemetry-java-enabled=true
+kubectl label namespace/default opentelemetry-inst-java=enabled
 ```
 
 ## Change instrumentation config

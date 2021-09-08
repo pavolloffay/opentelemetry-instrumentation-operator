@@ -72,7 +72,7 @@ func (r *NamespaceControllerReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	for _, dep := range deps.Items {
-		if inject.IsInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
+		if inject.IsInstrumentationEnabled(javaInstrumentationLabel, dep.ObjectMeta, ns.ObjectMeta) {
 			inject.InjectPod(dep.ObjectMeta, &dep.Spec.Template.Spec, instrumentation.Spec)
 			if err := r.Client.Update(ctx, &dep); err != nil {
 				return ctrl.Result{}, err

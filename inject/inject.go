@@ -29,7 +29,7 @@ func IsInstrumentationEnabled(label string, meta ...metav1.ObjectMeta) bool {
 		if !ok {
 			continue
 		}
-		return val == "true"
+		return val == "enabled"
 	}
 	return false
 }

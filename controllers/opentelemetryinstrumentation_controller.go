@@ -32,6 +32,10 @@ import (
 	v1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
 )
 
+const (
+	javaInstrumentationLabel = "opentelemetry-inst-java"
+)
+
 // OpenTelemetryInstrumentationReconciler reconciles a OpenTelemetryInstrumentation object
 type OpenTelemetryInstrumentationReconciler struct {
 	client.Client
@@ -67,7 +71,7 @@ func (r *OpenTelemetryInstrumentationReconciler) Reconcile(ctx context.Context, 
 	}
 
 	for _, dep := range deps.Items {
-		if inject.IsInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
+		if inject.IsInstrumentationEnabled(javaInstrumentationLabel, dep.ObjectMeta, ns.ObjectMeta) {
 			inject.InjectPod(dep.ObjectMeta, &dep.Spec.Template.Spec, instrumentation.Spec)
 			if err := r.Client.Update(ctx, &dep); err != nil {
 				return ctrl.Result{}, err

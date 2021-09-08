@@ -31,10 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const (
-	javaInstrumentationLablel = "opentelemetry-java-enabled"
-)
-
 type DeploymentControllerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -66,7 +62,7 @@ func (r *DeploymentControllerReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 
-	if inject.IsInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
+	if inject.IsInstrumentationEnabled(javaInstrumentationLabel, dep.ObjectMeta, ns.ObjectMeta) {
 		instrumentation := &v1alpha1.OpenTelemetryInstrumentation{}
 		err := r.Client.Get(ctx, types.NamespacedName{
 			Namespace: req.Namespace,
