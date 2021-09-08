@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	v1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
+	"github.com/pavolloffay/opentelemetry-instrumentation-operator/inject"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -65,26 +66,38 @@ func (r *DeploymentControllerReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 
-	if isInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
+	if inject.IsInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
 		instrumentation := &v1alpha1.OpenTelemetryInstrumentation{}
-		if err := r.Client.Get(ctx, types.NamespacedName{
+		err := r.Client.Get(ctx, types.NamespacedName{
 			Namespace: req.Namespace,
 			Name:      "opentelemetry-instrumentation",
-		}, instrumentation); err != nil {
+		}, instrumentation)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				fmt.Println("opentelemetry-instrumentation CR does not exists in: " + req.Namespace)
+				return ctrl.Result{}, nil
+			}
 			return ctrl.Result{}, err
 		}
 
-		m := metadata{
-			namespace:      dep.Namespace,
-			deploymentName: dep.Name,
+		m := inject.Metadata{
+			Namespace:      dep.Namespace,
+			DeploymentName: dep.Name,
 			//podName:        dep.Spec.Template.Name,
-			containerName: dep.Spec.Template.Spec.Containers[0].Name,
+			ContainerName: dep.Spec.Template.Spec.Containers[0].Name,
 		}
 
-		injectPod(m, dep.ObjectMeta, &(dep.Spec.Template.Spec), instrumentation.Spec)
-
+		inject.InjectPod(m, dep.ObjectMeta, &(dep.Spec.Template.Spec), instrumentation.Spec)
 		if err := r.Client.Update(ctx, dep); err != nil {
 			return ctrl.Result{}, err
+		}
+	} else {
+		objectUpdated := inject.Clean(&dep.Spec.Template.Spec)
+		if objectUpdated {
+			fmt.Println("-----> Updating removed instance " + req.String())
+			if err := r.Client.Update(ctx, dep); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
 

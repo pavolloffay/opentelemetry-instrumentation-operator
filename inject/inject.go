@@ -1,4 +1,4 @@
-package controllers
+package inject
 
 import (
 	"fmt"
@@ -9,7 +9,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func isInstrumentationEnabled(label string, meta ...metav1.ObjectMeta) bool {
+const (
+	initContainerName = "opentelemetry-auto-instrumentation"
+	volumeName        = "opentelemetry-auto-instrumentation"
+
+	envJavaToolsOptions         = "JAVA_TOOL_OPTIONS"
+	envOTELServiceName          = "OTEL_SERVICE_NAME"
+	envOTELTracesSampler        = "OTEL_TRACES_SAMPLER"
+	envOTELTracesSamplerArg     = "OTEL_TRACES_SAMPLER_ARG"
+	envOTELResourceAttrs        = "OTEL_RESOURCE_ATTRIBUTES"
+	envOTELExporterOTLPEndpoint = "OTEL_EXPORTER_OTLP_ENDPOINT"
+
+	javaJVMArgument = " -javaagent:/otel-auto-instrumentation/javaagent.jar"
+)
+
+func IsInstrumentationEnabled(label string, meta ...metav1.ObjectMeta) bool {
 	for _, ometa := range meta {
 		val, ok := ometa.Labels[label]
 		if !ok {
@@ -20,16 +34,24 @@ func isInstrumentationEnabled(label string, meta ...metav1.ObjectMeta) bool {
 	return false
 }
 
-func injectPod(metadata metadata, workloadMeta metav1.ObjectMeta, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+type Metadata struct {
+	Namespace      string
+	DeploymentName string
+	// pod name is not known at this time
+	//podName        string
+	ContainerName string
+}
+
+func InjectPod(metadata Metadata, workloadMeta metav1.ObjectMeta, pod *corev1.PodSpec, instrumentation cachev1alpha1.OpenTelemetryInstrumentationSpec) {
 	idx := getIndexOfContainer(pod.InitContainers, "opentelemetry-auto-instrumentation")
 	if idx == -1 {
 		pod.InitContainers = append(pod.InitContainers, corev1.Container{
-			Name:            "opentelemetry-auto-instrumentation",
+			Name:            initContainerName,
 			Image:           instrumentation.JavaagentImage,
 			ImagePullPolicy: corev1.PullAlways,
 			Command:         []string{"cp", "/javaagent.jar", "/otel-auto-instrumentation/javaagent.jar"},
 			VolumeMounts: []corev1.VolumeMount{{
-				Name:      "opentelemetry-auto-instrumentation",
+				Name:      volumeName,
 				MountPath: "/otel-auto-instrumentation",
 			}},
 		})
@@ -38,7 +60,7 @@ func injectPod(metadata metadata, workloadMeta metav1.ObjectMeta, pod *corev1.Po
 	idx = getIndexOfVolume(pod.Volumes, "opentelemetry-auto-instrumentation")
 	if idx == -1 {
 		pod.Volumes = append(pod.Volumes, corev1.Volume{
-			Name: "opentelemetry-auto-instrumentation",
+			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			}})
@@ -47,40 +69,39 @@ func injectPod(metadata metadata, workloadMeta metav1.ObjectMeta, pod *corev1.Po
 	injectContainer(metadata, workloadMeta, &pod.Containers[0], instrumentation)
 }
 
-func injectContainer(metadata metadata, parentMeta metav1.ObjectMeta, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
-	javaagent := " -javaagent:/otel-auto-instrumentation/javaagent.jar"
-	idx := getIndexOfEnv(container.Env, "JAVA_TOOL_OPTIONS")
-	if idx > -1 && strings.Contains(container.Env[idx].Value, javaagent) {
+func injectContainer(metadata Metadata, parentMeta metav1.ObjectMeta, container *corev1.Container, inst cachev1alpha1.OpenTelemetryInstrumentationSpec) {
+	idx := getIndexOfEnv(container.Env, envJavaToolsOptions)
+	if idx > -1 && strings.Contains(container.Env[idx].Value, javaJVMArgument) {
 		// nothing
 	} else if idx == -1 {
 		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  "JAVA_TOOL_OPTIONS",
-			Value: javaagent,
+			Name:  envJavaToolsOptions,
+			Value: javaJVMArgument,
 		})
 	}
 
-	idx = getIndexOfEnv(container.Env, "OTEL_EXPORTER_OTLP_ENDPOINT")
+	idx = getIndexOfEnv(container.Env, envOTELExporterOTLPEndpoint)
 	if idx > -1 {
 		container.Env[idx].Value = inst.OTLPEndpoint
 	} else {
-		container.Env = append(container.Env, corev1.EnvVar{Name: "OTEL_EXPORTER_OTLP_ENDPOINT", Value: inst.OTLPEndpoint})
+		container.Env = append(container.Env, corev1.EnvVar{Name: envOTELExporterOTLPEndpoint, Value: inst.OTLPEndpoint})
 	}
 
-	idx = getIndexOfVolumeMount(container.VolumeMounts, "opentelemetry-auto-instrumentation")
+	idx = getIndexOfVolumeMount(container.VolumeMounts, volumeName)
 	if idx == -1 {
 		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
-			Name:      "opentelemetry-auto-instrumentation",
+			Name:      volumeName,
 			MountPath: "/otel-auto-instrumentation",
 		})
 	}
 
-	idx = getIndexOfEnv(container.Env, "OTEL_SERVICE_NAME")
+	idx = getIndexOfEnv(container.Env, envOTELServiceName)
 	if idx > -1 {
-		container.Env[idx].Value = metadata.deploymentName
+		container.Env[idx].Value = metadata.DeploymentName
 	} else {
 		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  "OTEL_SERVICE_NAME",
-			Value: metadata.deploymentName,
+			Name:  envOTELServiceName,
+			Value: metadata.DeploymentName,
 		})
 	}
 
@@ -92,17 +113,17 @@ func injectContainer(metadata metadata, parentMeta metav1.ObjectMeta, container 
 			}
 			resourceAttributes += fmt.Sprintf("%s=%s", k, v)
 		}
-		resourceAttributes += ",k8s.namespace=" + metadata.namespace
-		resourceAttributes += ",k8s.deployment=" + metadata.deploymentName
+		resourceAttributes += ",k8s.namespace=" + metadata.Namespace
+		resourceAttributes += ",k8s.deployment=" + metadata.DeploymentName
 		//resourceAttributes += ",k8s.pod=" + metadata.podName
-		resourceAttributes += ",k8s.container=" + metadata.containerName
+		resourceAttributes += ",k8s.container=" + metadata.ContainerName
 
-		idx = getIndexOfEnv(container.Env, "OTEL_RESOURCE_ATTRIBUTES")
+		idx = getIndexOfEnv(container.Env, envOTELResourceAttrs)
 		if idx > -1 {
 			container.Env[idx].Value = resourceAttributes
 		} else {
 			container.Env = append(container.Env, corev1.EnvVar{
-				Name:  "OTEL_RESOURCE_ATTRIBUTES",
+				Name:  envOTELResourceAttrs,
 				Value: resourceAttributes,
 			})
 		}
@@ -114,12 +135,12 @@ func injectContainer(metadata metadata, parentMeta metav1.ObjectMeta, container 
 			sampler = samplerAnnotation
 		}
 
-		idx = getIndexOfEnv(container.Env, "OTEL_TRACES_SAMPLER")
+		idx = getIndexOfEnv(container.Env, envOTELTracesSampler)
 		if idx > -1 {
 			container.Env[idx].Value = sampler
 		} else {
 			container.Env = append(container.Env, corev1.EnvVar{
-				Name:  "OTEL_TRACES_SAMPLER",
+				Name:  envOTELTracesSampler,
 				Value: sampler,
 			})
 		}
@@ -131,24 +152,16 @@ func injectContainer(metadata metadata, parentMeta metav1.ObjectMeta, container 
 			samplerArg = samplerAnnotationArg
 		}
 
-		idx = getIndexOfEnv(container.Env, "OTEL_TRACES_SAMPLER_ARG")
+		idx = getIndexOfEnv(container.Env, envOTELTracesSamplerArg)
 		if idx > -1 {
 			container.Env[idx].Value = samplerArg
 		} else {
 			container.Env = append(container.Env, corev1.EnvVar{
-				Name:  "OTEL_TRACES_SAMPLER_ARG",
+				Name:  envOTELTracesSamplerArg,
 				Value: samplerArg,
 			})
 		}
 	}
-}
-
-type metadata struct {
-	namespace      string
-	deploymentName string
-	// pod name is not known at this time
-	//podName        string
-	containerName string
 }
 
 func getIndexOfEnv(envs []corev1.EnvVar, name string) int {
