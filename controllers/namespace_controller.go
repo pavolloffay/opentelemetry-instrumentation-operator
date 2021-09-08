@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	v1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,12 +28,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	v1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
 )
 
-// OpenTelemetryInstrumentationReconciler reconciles a OpenTelemetryInstrumentation object
-type OpenTelemetryInstrumentationReconciler struct {
+type NamespaceControllerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -40,28 +38,34 @@ type OpenTelemetryInstrumentationReconciler struct {
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=opentelemetry.io,resources=opentelemetryinstrumentations/finalizers,verbs=update
-func (r *OpenTelemetryInstrumentationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
-	fmt.Println("Deployment reconcile: " + req.Namespace + "/" + req.Name)
 
-	instrumentation := &v1alpha1.OpenTelemetryInstrumentation{}
-	err := r.Client.Get(ctx, req.NamespacedName, instrumentation)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
+func (r *NamespaceControllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	_ = log.FromContext(ctx)
+	fmt.Println("Namespace reconcile: " + req.Namespace + "/" + req.Name)
 
 	ns := &corev1.Namespace{}
 	if err := r.Client.Get(ctx, types.NamespacedName{
-		Name: req.Namespace,
+		Name: req.Name,
 	}, ns); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	deps := &v1.DeploymentList{}
-	if err := r.Client.List(ctx, deps); err != nil {
+	if err := r.Client.List(ctx, deps, client.InNamespace(req.Name)); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	instrumentation := &v1alpha1.OpenTelemetryInstrumentation{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: req.Name,
+		Name:      "opentelemetry-instrumentation",
+	}, instrumentation)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -78,13 +82,12 @@ func (r *OpenTelemetryInstrumentationReconciler) Reconcile(ctx context.Context, 
 			}
 		}
 	}
-
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *OpenTelemetryInstrumentationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *NamespaceControllerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.OpenTelemetryInstrumentation{}).
+		For(&corev1.Namespace{}).
 		Complete(r)
 }

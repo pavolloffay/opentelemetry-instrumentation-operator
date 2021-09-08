@@ -86,11 +86,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.PodControllerReconciler{
+	if err = (&controllers.NamespaceControllerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PodControllerReconciler")
+		setupLog.Error(err, "unable to create controller", "controller", "NamespaceControllerReconciler")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.DeploymentControllerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DeploymentControllerReconciler")
 		os.Exit(1)
 	}
 

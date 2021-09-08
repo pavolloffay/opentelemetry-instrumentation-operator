@@ -19,9 +19,10 @@ package controllers
 import (
 	"context"
 	"fmt"
-	cachev1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
+	v1alpha1 "github.com/pavolloffay/opentelemetry-instrumentation-operator/api/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +34,7 @@ const (
 	javaInstrumentationLablel = "opentelemetry-java-enabled"
 )
 
-type PodControllerReconciler struct {
+type DeploymentControllerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -44,12 +45,16 @@ type PodControllerReconciler struct {
 
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *DeploymentControllerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 	fmt.Println("Deployment reconcile: " + req.Namespace + "/" + req.Name)
 
 	dep := &v1.Deployment{}
-	if err := r.Client.Get(ctx, req.NamespacedName, dep); err != nil {
+	err := r.Client.Get(ctx, req.NamespacedName, dep)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -61,7 +66,7 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	if isInstrumentationEnabled(javaInstrumentationLablel, dep.ObjectMeta, ns.ObjectMeta) {
-		instrumentation := &cachev1alpha1.OpenTelemetryInstrumentation{}
+		instrumentation := &v1alpha1.OpenTelemetryInstrumentation{}
 		if err := r.Client.Get(ctx, types.NamespacedName{
 			Namespace: req.Namespace,
 			Name:      "opentelemetry-instrumentation",
@@ -87,7 +92,7 @@ func (r *PodControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *PodControllerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *DeploymentControllerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Deployment{}).
 		Complete(r)
